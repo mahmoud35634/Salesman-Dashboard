@@ -13,7 +13,7 @@ def load_sales_credentials():
     with open("salesman_credentials.json", "r", encoding="utf-8") as f:
         return json.load(f)
 
-SALES_CREDENTIALS = load_sales_credentials()
+SALES_CREDENTIALS = st.secrets["users"]
 
 # Get column indices (make sure these names exactly match the header)
 category_col_name = "Sction SR"  
@@ -86,7 +86,7 @@ if not st.session_state.logged_in:
         user_data = SALES_CREDENTIALS.get(username)
         if user_data and user_data["password"] == password:
             st.session_state.logged_in = True
-            st.session_state.salesman = user_data["salesman"]
+            st.session_state.salesman = user_data.get("sr_name", username)
             st.sidebar.success(f"Welcome, {st.session_state.salesman}!")
         else:
             st.sidebar.error("Invalid username or password")
