@@ -1,8 +1,10 @@
-streamlit
+streamlit 
 pandas
-numpy
-scikit-learn
-tensorflow
-joblib
-matplotlib
-pickle5
+pyodbc
+sqlalchemy
+datetime
+google.generativeai 
+dotenv 
+os
+base64
+io  
