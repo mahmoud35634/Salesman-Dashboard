@@ -8,11 +8,6 @@ from google.oauth2.service_account import Credentials
 
 import json
 
-@st.cache_resource
-def load_sales_credentials():
-    with open("salesman_credentials.json", "r", encoding="utf-8") as f:
-        return json.load(f)
-
 SALES_CREDENTIALS = st.secrets["users"]
 
 # Get column indices (make sure these names exactly match the header)
