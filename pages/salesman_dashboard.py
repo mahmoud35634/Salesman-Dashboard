@@ -224,7 +224,7 @@ def get_customers_B2B(sanad_id):
             AND i.ITEM_CODE NOT LIKE '%XE%'
         GROUP BY 
             c.CUSTOMER_B2B_ID,
-            CAST(s.date AS date),
+        
             RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)),
             RIGHT(i.MG2, LEN(i.MG2) - CHARINDEX('|', i.MG2)),
             i.ITEM_CODE,
