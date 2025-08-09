@@ -55,8 +55,7 @@ a {
 
 # --- Tools: (icon, title, description, page_name)
 tools = [
-    ("🧮", "Salesman Dashboard ", "The Sales man can show his customers and their sales."),
-    ("sadas")
+    ("🧮", "Salesman Dashboard ", "The Sales man can show his customers and their sales.","sa"),
 
 ]
 # --- Render clickable cards ---
