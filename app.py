@@ -55,15 +55,9 @@ a {
 
 # --- Tools: (icon, title, description, page_name)
 tools = [
-    ("🧮", "SQL Server", "Query the database using SQL directly.", "SQL_Server"),
-    ("🧠", "SQL Chatbot", "Ask questions using natural language and get data-driven answers.", "3_SQL_Chatbot"),
-    ("🛍️", "Product Recommender", "Discover frequently co-purchased items.", "2_Product_Recommender"),
-    ("🔄", "Co-Products by Brand", "View co-purchased products by brand over time.", "4_CoProducts_By_Brand"),
-    ("📦", "Co-Products by Brand & Items", "Explore brand, item, category, and more with filters.", "5_CoProducts_By_Brand_Items"),
-    ("📉", "Sales Forecasting", "Page under deployment. Stay tuned.", "6_Sales_Forecasting"),
-    ("🎯", "ALX Product Recommender", "Recommend products for specific ALX customers.", "7_ALX_Recommender"),
-]
+    ("🧮", "Salesman Dashboard ", "The Sales man can show his customers and their sales."),
 
+]
 # --- Render clickable cards ---
 for icon, title, description, page in tools:
     st.markdown(f"""
