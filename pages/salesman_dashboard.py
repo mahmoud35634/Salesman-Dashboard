@@ -8,18 +8,22 @@ from google.oauth2.service_account import Credentials
 
 import json
 
-SALES_CREDENTIALS = st.secrets["users"]
+
+SALES_CREDENTIALS = st.secrets["SALES_CREDENTIALS"]
 
 # Get column indices (make sure these names exactly match the header)
 category_col_name = "Sction SR"  
 name_col_name = "SanadID"
 salesman_col_name = "SR Name "
 # --- Database Connection ---
+db_config = st.secrets["database"]
+# --- Database Connection ---
 connection_string = (
-    "DRIVER={SQL Server};"
-    "SERVER=web.speed.live;"
-    "DATABASE=Sanad1;"
-    "Trusted_Connection=yes;"
+        f"DRIVER={{{db_config['driver']}}};"
+        f"SERVER={db_config['server']};"
+        f"DATABASE={db_config['database']};"
+        f"UID={db_config['username']};"
+        f"PWD={db_config['password']}"
 )
 params = urllib.parse.quote_plus(connection_string)
 engine = create_engine(f"mssql+pyodbc:///?odbc_connect={params}")
@@ -28,47 +32,22 @@ engine = create_engine(f"mssql+pyodbc:///?odbc_connect={params}")
 @st.cache_resource
 def connect_to_sheet():
     scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-    creds = Credentials.from_service_account_file("credentials.json", scopes=scopes)
+    creds = Credentials.from_service_account_info(
+        st.secrets["gcp_service_account"],
+        scopes=scopes
+    )
     client = gspread.authorize(creds)
     sheet_id = "16IxEZH4goUOiRloFhYayGhRO-K6t_aXMl8nscHdPzhc"
     workbook = client.open_by_key(sheet_id)
-    sheet = workbook.get_worksheet(2)  # 4th sheet (index 3)
+    sheet = workbook.get_worksheet(2)  # index 2 = 3rd sheet
     return sheet
-
-
-
-# @st.cache_data
-# def get_salesman_info():
-#     sheet = connect_to_sheet()
-#     data = sheet.get_all_values()
-#     header = data[0]
-#     rows = data[1:]
-
-#     # Get index of "SR Name" column (check for exact name match)
-#     try:
-#         sr_col_idx = header.index("SR Name ")
-#     except ValueError:
-#         st.error("'SR Name' column not found. Check spelling/capitalization.")
-#         return []
-
-#     # Get unique salesman names
-#     sr_names = sorted(set(row[sr_col_idx] for row in rows if row[sr_col_idx].strip() != ""))
-#     return sr_names
-
-# salesman = st.selectbox(
-#     "Select Salesman",
-#     get_salesman_info(),
-#     index=0, ) # Default to first salesman)
-
-# selected_salesman = salesman.strip()
-# st.write(f"Selected Salesman: {selected_salesman}")
-
 
 
 
 
 # Sidebar login
 st.sidebar.title("🔐 Salesman Login")
+
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -81,8 +60,9 @@ if not st.session_state.logged_in:
         user_data = SALES_CREDENTIALS.get(username)
         if user_data and user_data["password"] == password:
             st.session_state.logged_in = True
-            st.session_state.salesman = user_data.get("sr_name", username)
+            st.session_state.salesman = user_data["salesman"]
             st.sidebar.success(f"Welcome, {st.session_state.salesman}!")
+            st.rerun()
         else:
             st.sidebar.error("Invalid username or password")
     st.stop()
@@ -217,45 +197,57 @@ else:
 
 # Step 1: Load customer info from database
 @st.cache_data
-def get_customers_B2B():
+def get_customers_B2B(sanad_id):
+    if not sanad_id:
+        st.warning("No SanadID selected. Please select a SanadID to view B2B details.")
+
+        return pd.DataFrame()  # No selection yet
     with engine.connect() as conn:
         query = f"""
- 
-SELECT 
-	c.CUSTOMER_B2B_ID as sanad_id,
-	Cast(s.date as date) as Date,
-	Right(i.MASTER_BRAND,len(i.MASTER_BRAND)-CHARINDEX('|',i.MASTER_BRAND)) as Company,
-	Right(i.MG2,len(i.MG2)-CHARINDEX('|',i.MG2)) as Category,
-	i.ITEM_CODE,
-	i.DESCRIPTION ,
-	SUM(s.Netsalesvalue) as Sales,
-	SUM(s.SalesQtyInCases) as TotalQty
-
-From
-	MP_Sales s
-Left join 
-	MP_Customers c
-on 
-	s.CustomerID = c.SITE_NUMBER
-LEFT JOIN	
-	MP_Items i
-on 
-	s.ItemId = i.ITEM_CODE
-Where 
-	s.Date >= '2025-06-01' and c.CUSTOMER_B2B_ID = '{st.session_state.selected_sanad}' and i.ITEM_CODE not like '%XE%'
-group by 
-	c.CUSTOMER_B2B_ID ,
-	Cast(s.date as date) ,
-	Right(i.MASTER_BRAND,len(i.MASTER_BRAND)-CHARINDEX('|',i.MASTER_BRAND)) ,
-	Right(i.MG2,len(i.MG2)-CHARINDEX('|',i.MG2)) ,
-	i.ITEM_CODE,
-	i.DESCRIPTION 
-order by Sales DESC , TotalQty DESC
+        SELECT 
+            c.CUSTOMER_B2B_ID as sanad_id,
+            CAST(s.date AS date) AS Date,
+            RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)) AS Company,
+            RIGHT(i.MG2, LEN(i.MG2) - CHARINDEX('|', i.MG2)) AS Category,
+            i.ITEM_CODE,
+            i.DESCRIPTION,
+            SUM(s.Netsalesvalue) AS Sales,
+            SUM(s.SalesQtyInCases) AS TotalQty
+        FROM MP_Sales s
+        LEFT JOIN MP_Customers c
+            ON s.CustomerID = c.SITE_NUMBER
+        LEFT JOIN MP_Items i
+            ON s.ItemId = i.ITEM_CODE
+        WHERE 
+            s.Date >= DATEADD(MONTH, -3, GETDATE())
+            AND c.CUSTOMER_B2B_ID = '{sanad_id}'
+            AND i.ITEM_CODE NOT LIKE '%XE%'
+        GROUP BY 
+            c.CUSTOMER_B2B_ID,
+            CAST(s.date AS date),
+            RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)),
+            RIGHT(i.MG2, LEN(i.MG2) - CHARINDEX('|', i.MG2)),
+            i.ITEM_CODE,
+            i.DESCRIPTION
+        ORDER BY Sales DESC, TotalQty DESC
         """
-        result = pd.read_sql(query, conn)
-        return result
+        df=pd.read_sql(query, conn)
+        if df.empty:
+            st.warning("No data for this customer in the last 3 months.")
+        return df
+
 st.sidebar.subheader("B2B Customer Details")
-st.dataframe(get_customers_B2B(), use_container_width=True)
-    
+
+if st.session_state.selected_sanad:
+    df_b2b = get_customers_B2B(st.session_state.selected_sanad)
+    if not df_b2b.empty:
+        st.dataframe(df_b2b, use_container_width=True)
+else:
+    st.info("Please select a SanadID to view B2B details.")
 
 
+# --- Sidebar logout ---
+if st.sidebar.button("🚪 Logout"):
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
+    st.rerun()
